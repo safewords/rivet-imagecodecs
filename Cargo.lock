@@ -37,7 +37,7 @@ dependencies = [
 [[package]]
 name = "rivet-png"
 version = "0.1.0"
-source = "git+https://github.com/rivet-transcoder/rivet-png?branch=develop#139773a4cf71c23c58ba3981d7d5498253c28930"
+source = "git+https://github.com/safewords/rivet-png?branch=develop#139773a4cf71c23c58ba3981d7d5498253c28930"
 dependencies = [
  "thiserror",
 ]

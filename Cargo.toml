@@ -7,8 +7,8 @@ version = "0.1.0"
 edition = "2024"
 rust-version = "1.99"
 authors = ["Ely Erin Fox"]
-repository = "https://github.com/rivet-transcoder/rivet-imagecodecs"
-homepage = "https://github.com/rivet-transcoder/rivet-imagecodecs"
+repository = "https://github.com/safewords/rivet-imagecodecs"
+homepage = "https://github.com/safewords/rivet-imagecodecs"
 
 [profile.test]
 opt-level = 2

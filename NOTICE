@@ -44,7 +44,7 @@ Third-party components
 rivet-gif and rivet-bmp depend on nothing beyond the Rust standard library.
 rivet-tiff depends on:
 
-rivet-png (https://github.com/rivet-transcoder/rivet-png) — Open Encoding
+rivet-png (https://github.com/safewords/rivet-png) — Open Encoding
   Attribution License 1.0, Copyright 2026 Ely Erin Fox
 thiserror (https://crates.io/crates/thiserror), through rivet-png — MIT OR
   Apache-2.0

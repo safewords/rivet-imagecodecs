@@ -1,13 +1,13 @@
 # rivet-imagecodecs
 
-[![CI](https://github.com/rivet-transcoder/rivet-imagecodecs/actions/workflows/ci.yml/badge.svg)](https://github.com/rivet-transcoder/rivet-imagecodecs/actions/workflows/ci.yml)
+[![CI](https://github.com/safewords/rivet-imagecodecs/actions/workflows/ci.yml/badge.svg)](https://github.com/safewords/rivet-imagecodecs/actions/workflows/ci.yml)
 
 **GIF, BMP and TIFF decoders and encoders** in Rust, three crates in one
 workspace: no C, no system libraries, no build script, no `unsafe`. Written
 from the formats' specifications (GIF89a, Microsoft's BMP/DIB documentation,
 TIFF 6.0 with its technical notes, ITU-T T.4/T.6), not translated from any
 other implementation. Written for the
-**[rivet](https://github.com/rivet-transcoder/rivet)** transcoder, where they
+**[rivet](https://github.com/safewords/rivet)** transcoder, where they
 replace the `image` crate's GIF, BMP and TIFF support.
 
 | crate | imported as | decodes | encodes |
@@ -21,9 +21,9 @@ DEFLATE from rivet's PNG crate (`rivet-png`, written the same clean-room way).
 
 ```toml
 [dependencies]
-gif = { package = "rivet-gif", git = "https://github.com/rivet-transcoder/rivet-imagecodecs", branch = "develop" }
-bmp = { package = "rivet-bmp", git = "https://github.com/rivet-transcoder/rivet-imagecodecs", branch = "develop" }
-tiff = { package = "rivet-tiff", git = "https://github.com/rivet-transcoder/rivet-imagecodecs", branch = "develop" }
+gif = { package = "rivet-gif", git = "https://github.com/safewords/rivet-imagecodecs", branch = "develop" }
+bmp = { package = "rivet-bmp", git = "https://github.com/safewords/rivet-imagecodecs", branch = "develop" }
+tiff = { package = "rivet-tiff", git = "https://github.com/safewords/rivet-imagecodecs", branch = "develop" }
 ```
 
 ## GIF
