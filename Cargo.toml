@@ -1,0 +1,17 @@
+[workspace]
+resolver = "3"
+members = ["crates/rivet-gif", "crates/rivet-bmp", "crates/rivet-tiff", "crates/testkit"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.99"
+authors = ["Ely Erin Fox"]
+repository = "https://github.com/rivet-transcoder/rivet-imagecodecs"
+homepage = "https://github.com/rivet-transcoder/rivet-imagecodecs"
+
+[profile.test]
+opt-level = 2
+
+[profile.dev.package."*"]
+opt-level = 2

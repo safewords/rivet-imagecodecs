@@ -1,0 +1,22 @@
+[package]
+name = "rivet-tiff"
+version.workspace = true
+edition.workspace = true
+rust-version = "1.99"
+license-file = "../../LICENSE.md"
+readme = "../../README.md"
+repository.workspace = true
+homepage.workspace = true
+documentation = "https://docs.rs/rivet-tiff"
+authors.workspace = true
+description = "A TIFF 6.0 decoder (classic and BigTIFF, strips and tiles, PackBits, LZW, Deflate, CCITT G3/G4, predictors, 1-64 bit, gray/RGB/palette/CMYK/YCbCr, multi-page) and encoder in Rust, written from the TIFF 6.0 specification; its own inflate and deflate. rivet's TIFF codec. Imported as `tiff`."
+keywords = ["tiff", "image", "decoder", "encoder", "bigtiff"]
+categories = ["multimedia::images", "multimedia::encoding"]
+
+[lib]
+name = "tiff"
+
+[dependencies]
+
+[dev-dependencies]
+testkit = { path = "../testkit" }

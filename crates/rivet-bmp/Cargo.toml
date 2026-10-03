@@ -1,0 +1,22 @@
+[package]
+name = "rivet-bmp"
+version.workspace = true
+edition.workspace = true
+rust-version = "1.99"
+license-file = "../../LICENSE.md"
+readme = "../../README.md"
+repository.workspace = true
+homepage.workspace = true
+documentation = "https://docs.rs/rivet-bmp"
+authors.workspace = true
+description = "A BMP/DIB decoder (1-32 bit, RLE4/RLE8/RLE24, BITFIELDS, V4/V5 and OS/2 headers) and encoder (8, 24, 32 bit) in Rust, written from Microsoft's BMP documentation. rivet's BMP codec. Imported as `bmp`."
+keywords = ["bmp", "dib", "image", "decoder", "encoder"]
+categories = ["multimedia::images", "multimedia::encoding"]
+
+[lib]
+name = "bmp"
+
+[dependencies]
+
+[dev-dependencies]
+testkit = { path = "../testkit" }
