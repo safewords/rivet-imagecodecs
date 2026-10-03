@@ -202,9 +202,20 @@ fn parse(data: &[u8]) -> Result<Layout> {
             });
         }
         Compression::Rgb => {
+            // The default layouts: 5-5-5 and 8-8-8, the rest of the pixel
+            // unused (`BITMAPINFOHEADER`: "the high byte in each DWORD is
+            // not used"). A 56-byte, V4 or V5 header has an alpha mask
+            // field whose description, unlike the colour masks', is not
+            // limited to BI_BITFIELDS: when it names bits outside the
+            // colour, those are the alpha. A 40-byte header has no alpha
+            // mask, and its unused byte stays unused — opaque — even when
+            // a writer filled it (some put alpha there without saying so;
+            // reading it would make every BMP whose writer leaves garbage
+            // or zeros there transparent).
+            let alpha = if hsize >= 56 && header != HeaderKind::Os2 { field32(52) } else { 0 };
             masks = match bits {
-                16 => Some([0x7C00, 0x03E0, 0x001F, 0]),
-                32 => Some([0x00FF_0000, 0x0000_FF00, 0x0000_00FF, 0]),
+                16 => Some([0x7C00, 0x03E0, 0x001F, alpha & 0x8000]),
+                32 => Some([0x00FF_0000, 0x0000_FF00, 0x0000_00FF, alpha & 0xFF00_0000]),
                 _ => None,
             };
         }

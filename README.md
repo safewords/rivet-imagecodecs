@@ -58,7 +58,10 @@ let out = e.finish()?;
 
 **Decoding**: 1, 2, 4 and 8-bit palettes; 16 and 32-bit with default layouts
 or any `BI_BITFIELDS` / `BI_ALPHABITFIELDS` masks (channels of any width,
-scaled to 8 bits with rounding; alpha when a mask gives it); 24-bit; RLE8,
+scaled to 8 bits with rounding; alpha when a mask gives it — for `BI_RGB`
+too, from a 56-byte, V4 or V5 header's alpha mask; a 40-byte header's
+32-bit `BI_RGB` pixels are opaque whatever their fourth byte holds, which
+`BITMAPINFOHEADER` says is not used); 24-bit; RLE8,
 RLE4 and OS/2 RLE24 (skipped pixels transparent); bottom-up and top-down;
 OS/2 1.x (12-byte) and 2.x (16 to 64-byte) headers; Windows 40, 52, 56, 108
 and 124-byte headers; embedded ICC profiles from V5 headers. Embedded JPEG

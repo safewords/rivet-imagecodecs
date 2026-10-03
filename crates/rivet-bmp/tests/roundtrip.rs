@@ -81,6 +81,94 @@ fn file(width: i32, height: i32, bits: u16, compression: u32, extra: &[u8], pixe
     v
 }
 
+/// A file with an information header of `hsize` bytes (40, 56, 108 or
+/// 124): BI_RGB or BI_BITFIELDS, `masks` (R, G, B, A) in the header's mask
+/// fields when it has them, `extra` between header and pixels.
+fn file_with_header(
+    hsize: u32,
+    width: i32,
+    height: i32,
+    bits: u16,
+    compression: u32,
+    masks: [u32; 4],
+    pixels: &[u8],
+) -> Vec<u8> {
+    let off = 14 + hsize as usize;
+    let mut v = b"BM".to_vec();
+    v.extend_from_slice(&((off + pixels.len()) as u32).to_le_bytes());
+    v.extend_from_slice(&[0; 4]);
+    v.extend_from_slice(&(off as u32).to_le_bytes());
+    let mut hdr = vec![0u8; hsize as usize];
+    hdr[0..4].copy_from_slice(&hsize.to_le_bytes());
+    hdr[4..8].copy_from_slice(&width.to_le_bytes());
+    hdr[8..12].copy_from_slice(&height.to_le_bytes());
+    hdr[12..14].copy_from_slice(&1u16.to_le_bytes());
+    hdr[14..16].copy_from_slice(&bits.to_le_bytes());
+    hdr[16..20].copy_from_slice(&compression.to_le_bytes());
+    for (i, m) in masks.iter().enumerate() {
+        let at = 40 + 4 * i;
+        if at + 4 <= hsize as usize {
+            hdr[at..at + 4].copy_from_slice(&m.to_le_bytes());
+        }
+    }
+    if hsize >= 108 {
+        hdr[56..60].copy_from_slice(&u32::from_be_bytes(*b"sRGB").to_le_bytes()); // bV4CSType
+    }
+    v.extend_from_slice(&hdr);
+    v.extend_from_slice(pixels);
+    v
+}
+
+/// 32-bit BI_RGB: a 56-byte, V4 or V5 header's alpha mask is honoured
+/// (the fourth byte is alpha); with a zero alpha mask, or a 40-byte header
+/// (which has none), the fourth byte is unused and the picture opaque. Two
+/// pixels, BGRA: (10, 20, 30) at alpha 0x80, (40, 50, 60) at alpha 0.
+#[test]
+fn bi_rgb_alpha_comes_from_the_alpha_mask_only() {
+    let pixels = [30, 20, 10, 0x80, 60, 50, 40, 0];
+    let rgb = [0x00FF_0000, 0x0000_FF00, 0x0000_00FF];
+    for hsize in [56u32, 108, 124] {
+        let data = file_with_header(hsize, 2, 1, 32, 0, [rgb[0], rgb[1], rgb[2], 0xFF00_0000], &pixels);
+        let img = bmp::decode(&data).unwrap();
+        assert_eq!(img.rgba, [10, 20, 30, 0x80, 40, 50, 60, 0], "{hsize}-byte header");
+        assert!(img.has_alpha);
+        let no_alpha = file_with_header(hsize, 2, 1, 32, 0, [0; 4], &pixels);
+        let img = bmp::decode(&no_alpha).unwrap();
+        assert_eq!(img.rgba, [10, 20, 30, 255, 40, 50, 60, 255], "{hsize}-byte header, no alpha mask");
+        assert!(!img.has_alpha);
+    }
+    // BITMAPINFOHEADER: the high byte is not used, whatever is in it.
+    let img = bmp::decode(&file(2, 1, 32, 0, &[], &pixels)).unwrap();
+    assert_eq!(img.rgba, [10, 20, 30, 255, 40, 50, 60, 255]);
+    assert!(!img.has_alpha);
+    // 16-bit BI_RGB (5-5-5) with a V4 header's one-bit alpha mask.
+    let img = bmp::decode(&file_with_header(108, 2, 1, 16, 0, [0, 0, 0, 0x8000], &[0xFF, 0xFF, 0xFF, 0x7F])).unwrap();
+    assert_eq!(img.rgba, [255, 255, 255, 255, 255, 255, 255, 0]);
+}
+
+/// BI_BITFIELDS and BI_ALPHABITFIELDS: the alpha mask of a 56-byte, V4 or
+/// V5 header, or the fourth mask after a 40-byte header with
+/// BI_ALPHABITFIELDS, gives alpha; and the encoder's own 32-bit output (a
+/// V4 header with masks) reads back with its alpha.
+#[test]
+fn bitfield_alpha_masks_are_honoured() {
+    let pixels = [30, 20, 10, 0x80, 60, 50, 40, 0];
+    let masks = [0x00FF_0000, 0x0000_FF00, 0x0000_00FF, 0xFF00_0000];
+    for hsize in [56u32, 108, 124] {
+        let img = bmp::decode(&file_with_header(hsize, 2, 1, 32, 3, masks, &pixels)).unwrap();
+        assert_eq!(img.rgba, [10, 20, 30, 0x80, 40, 50, 60, 0], "{hsize}-byte header");
+    }
+    let after: Vec<u8> = masks.iter().flat_map(|m| m.to_le_bytes()).collect();
+    let img = bmp::decode(&file(2, 1, 32, 6, &after, &pixels)).unwrap();
+    assert_eq!(img.rgba, [10, 20, 30, 0x80, 40, 50, 60, 0], "BI_ALPHABITFIELDS");
+    // BI_BITFIELDS after a 40-byte header: three masks, no alpha.
+    let img = bmp::decode(&file(2, 1, 32, 3, &after[..12], &pixels)).unwrap();
+    assert_eq!(img.rgba, [10, 20, 30, 255, 40, 50, 60, 255]);
+    let rgba = [1, 2, 3, 0, 4, 5, 6, 77, 7, 8, 9, 255];
+    let ours = bmp::encode(3, 1, &rgba, Format::Rgba32).unwrap();
+    assert_eq!(bmp::decode(&ours).unwrap().rgba, rgba);
+}
+
 #[test]
 fn rle8_example_from_the_documentation() {
     // The compressed-bitmap example of the BITMAPINFOHEADER documentation:
