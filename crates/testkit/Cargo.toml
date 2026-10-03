@@ -1,0 +1,9 @@
+[package]
+name = "testkit"
+version.workspace = true
+edition.workspace = true
+rust-version = "1.99"
+publish = false
+description = "Test support for the rivet image codecs: corpus location, a small PNG and PNM reader for reference renderings, a deterministic RNG, corruption helpers."
+
+[dependencies]
