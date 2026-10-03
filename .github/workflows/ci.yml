@@ -1,0 +1,77 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  test:
+    name: tests (${{ matrix.name }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: linux x86-64,   os: ubuntu-latest }
+          - { name: linux arm64,    os: ubuntu-24.04-arm }
+          - { name: windows x86-64, os: windows-latest }
+          - { name: macos arm64,    os: macos-latest }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      # Without the corpora the corpus tests skip and say so; the round
+      # trips and robustness tests (run with overflow checks: the test
+      # profile keeps them) do not need them.
+      - name: Tests
+        run: cargo test --workspace
+
+  # The public corpora: the BMP Suite, libtiff's images and the GIF test
+  # suite. They are data under their own licences, not in the repository;
+  # this job fetches them (checked against tools/corpora.sha256) and runs
+  # every comparison.
+  corpora:
+    name: public corpora
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/cache@v4
+        with:
+          path: corpora
+          key: corpora-${{ hashFiles('tools/corpora.sha256') }}
+      - name: Fetch the corpora
+        run: python3 tools/fetch_corpora.py corpora
+      - name: Compare
+        # The tests find ./corpora at the workspace root by default.
+        run: cargo test --workspace -- --nocapture
+
+  msrv:
+    name: MSRV (1.99)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.99
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo build --workspace --release
+
+  lint:
+    name: clippy, rustfmt and rustdoc
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo fmt --all --check
+      - run: cargo clippy --workspace --all-targets -- -D warnings
+      - run: cargo doc --no-deps --workspace
+        env:
+          RUSTDOCFLAGS: -D warnings

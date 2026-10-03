@@ -17,10 +17,12 @@ documentation of the BMP/DIB file format (BITMAPFILEHEADER,
 BITMAPCOREHEADER, BITMAPINFOHEADER, BITMAPV4HEADER, BITMAPV5HEADER, the
 RLE4/RLE8 encodings and BI_BITFIELDS), IBM's OS/2 bitmap headers, TIFF
 Revision 6.0 (Adobe, 1992) with the Adobe TIFF Technical Notes, ITU-T T.4
-and T.6 (fax coding), and RFC 1950 / RFC 1951 (zlib, DEFLATE). They are not
+and T.6 (fax coding). They are not
 translations of, and do not derive from, any other implementation's source
 (image-rs, giflib, libtiff, zlib, stb and others were not read).
-docs/PROVENANCE.md records each source and how the tables were verified.
+DEFLATE for TIFF comes from rivet-png, rivet's PNG crate, written the same
+way from RFC 1950 and RFC 1951. docs/PROVENANCE.md records each source and
+how the tables were verified.
 
 The codecs are checked against public test corpora â€” Jason Summers' BMP
 Suite, libtiff's sample and test images, and Robert Ancell's GIF test
@@ -39,4 +41,10 @@ claim about whether a licence is needed for any use.
 Third-party components
 ------------------------------------------------------------------------------
 
-None. The crates depend on nothing beyond the Rust standard library.
+rivet-gif and rivet-bmp depend on nothing beyond the Rust standard library.
+rivet-tiff depends on:
+
+rivet-png (https://github.com/rivet-transcoder/rivet-png) — Open Encoding
+  Attribution License 1.0, Copyright 2026 Ely Erin Fox
+thiserror (https://crates.io/crates/thiserror), through rivet-png — MIT OR
+  Apache-2.0
