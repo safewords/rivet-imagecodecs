@@ -17,9 +17,9 @@ documentation of the BMP/DIB file format (BITMAPFILEHEADER,
 BITMAPCOREHEADER, BITMAPINFOHEADER, BITMAPV4HEADER, BITMAPV5HEADER, the
 RLE4/RLE8 encodings and BI_BITFIELDS), IBM's OS/2 bitmap headers, TIFF
 Revision 6.0 (Adobe, 1992) with the Adobe TIFF Technical Notes, ITU-T T.4
-and T.6 (fax coding). They are not
-translations of, and do not derive from, any other implementation's source
-(image-rs, giflib, libtiff, zlib, stb and others were not read).
+and T.6 (fax coding). They are not translations of, and do not derive
+from, any other implementation's source (image-rs, giflib, libtiff, zlib,
+stb and others were not read).
 DEFLATE for TIFF comes from rivet-png, rivet's PNG crate, written the same
 way from RFC 1950 and RFC 1951. docs/PROVENANCE.md records each source and
 how the tables were verified.
@@ -44,7 +44,7 @@ Third-party components
 rivet-gif and rivet-bmp depend on nothing beyond the Rust standard library.
 rivet-tiff depends on:
 
-rivet-png (https://github.com/rivet-transcoder/rivet-png) — Open Encoding
+rivet-png (https://github.com/rivet-transcoder/rivet-png) â€” Open Encoding
   Attribution License 1.0, Copyright 2026 Ely Erin Fox
-thiserror (https://crates.io/crates/thiserror), through rivet-png — MIT OR
+thiserror (https://crates.io/crates/thiserror), through rivet-png â€” MIT OR
   Apache-2.0
