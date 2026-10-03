@@ -17,6 +17,8 @@ categories = ["multimedia::images", "multimedia::encoding"]
 name = "tiff"
 
 [dependencies]
+# DEFLATE / zlib for compression 8 and 32946: rivet's PNG crate's, clean-room like this one.
+rpng = { package = "rivet-png", git = "https://github.com/rivet-transcoder/rivet-png", branch = "develop" }
 
 [dev-dependencies]
 testkit = { path = "../testkit" }

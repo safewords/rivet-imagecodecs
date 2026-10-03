@@ -1,18 +1,10 @@
-//! Test support for the rivet image codecs: where the public corpora are, a
-//! small PNG and PNM reader for their reference renderings, a deterministic
-//! random number generator, and ways of damaging files.
-//!
-//! The PNG reader exists only to read the corpora's reference images; it
-//! uses the TIFF crate's inflate (included by path, so the test support does
-//! not depend on a codec crate it helps test).
+//! Test support for the rivet image codecs: where the public corpora are,
+//! PNG (through rivet-png) and PNM readers for their reference renderings, a
+//! deterministic random number generator, and ways of damaging files.
 
 #![forbid(unsafe_code)]
 
 use std::path::{Path, PathBuf};
-
-#[path = "../../rivet-tiff/src/flate/inflate.rs"]
-#[allow(dead_code)]
-mod inflate;
 
 /// The directory holding the corpora `tools/fetch_corpora.py` fetches:
 /// `$RIVET_IMAGE_CORPORA`, else `corpora/` at the workspace root. `None`
@@ -111,144 +103,10 @@ pub struct Rgba {
     pub data: Vec<u8>,
 }
 
-/// Read a PNG (any colour type and bit depth, non-interlaced or Adam7) as
-/// 8-bit RGBA; 16-bit samples keep their high byte.
+/// Read a PNG (through rivet-png) as 8-bit RGBA, 16-bit samples rounded.
 pub fn read_png(bytes: &[u8]) -> Result<Rgba, String> {
-    if !bytes.starts_with(b"\x89PNG\r\n\x1a\n") {
-        return Err("not a PNG".into());
-    }
-    let mut pos = 8;
-    let (mut w, mut h, mut depth, mut ctype, mut interlace) = (0u32, 0u32, 0u8, 0u8, 0u8);
-    let mut idat = Vec::new();
-    let mut plte: Vec<[u8; 3]> = Vec::new();
-    let mut trns: Vec<u8> = Vec::new();
-    while pos + 8 <= bytes.len() {
-        let len = u32::from_be_bytes(bytes[pos..pos + 4].try_into().unwrap()) as usize;
-        let kind = &bytes[pos + 4..pos + 8];
-        let body = bytes.get(pos + 8..pos + 8 + len).ok_or("truncated chunk")?;
-        match kind {
-            b"IHDR" => {
-                w = u32::from_be_bytes(body[0..4].try_into().unwrap());
-                h = u32::from_be_bytes(body[4..8].try_into().unwrap());
-                depth = body[8];
-                ctype = body[9];
-                interlace = body[12];
-            }
-            b"PLTE" => plte = body.as_chunks::<3>().0.to_vec(),
-            b"tRNS" => trns = body.to_vec(),
-            b"IDAT" => idat.extend_from_slice(body),
-            b"IEND" => break,
-            _ => {}
-        }
-        pos += 12 + len;
-    }
-    let raw = inflate::zlib_decompress(&idat, 1 << 30, false).map_err(|e| e.to_string())?;
-    let channels = match ctype {
-        0 | 3 => 1,
-        2 => 3,
-        4 => 2,
-        6 => 4,
-        _ => return Err(format!("colour type {ctype}")),
-    };
-    let bpp_bits = channels * usize::from(depth);
-    let bpp = bpp_bits.div_ceil(8).max(1);
-    let mut data = vec![0u8; w as usize * h as usize * 4];
-    // (x0, y0, dx, dy) per pass.
-    let passes: &[(usize, usize, usize, usize)] = if interlace == 1 {
-        &[(0, 0, 8, 8), (4, 0, 8, 8), (0, 4, 4, 8), (2, 0, 4, 4), (0, 2, 2, 4), (1, 0, 2, 2), (0, 1, 1, 2)]
-    } else {
-        &[(0, 0, 1, 1)]
-    };
-    let mut at = 0;
-    for &(x0, y0, dx, dy) in passes {
-        let pw = (w as usize).saturating_sub(x0).div_ceil(dx);
-        let ph = (h as usize).saturating_sub(y0).div_ceil(dy);
-        if pw == 0 || ph == 0 {
-            continue;
-        }
-        let stride = (pw * bpp_bits).div_ceil(8);
-        let mut prev = vec![0u8; stride];
-        for row in 0..ph {
-            let filter = *raw.get(at).ok_or("short image data")?;
-            let mut line = raw.get(at + 1..at + 1 + stride).ok_or("short image data")?.to_vec();
-            at += 1 + stride;
-            for i in 0..stride {
-                let a = if i >= bpp { line[i - bpp] } else { 0 };
-                let b = prev[i];
-                let c = if i >= bpp { prev[i - bpp] } else { 0 };
-                let p = match filter {
-                    0 => 0,
-                    1 => a,
-                    2 => b,
-                    3 => ((u16::from(a) + u16::from(b)) / 2) as u8,
-                    4 => {
-                        let pa = (i16::from(b) - i16::from(c)).abs();
-                        let pb = (i16::from(a) - i16::from(c)).abs();
-                        let pc = (i16::from(a) + i16::from(b) - 2 * i16::from(c)).abs();
-                        if pa <= pb && pa <= pc {
-                            a
-                        } else if pb <= pc {
-                            b
-                        } else {
-                            c
-                        }
-                    }
-                    _ => return Err(format!("filter {filter}")),
-                };
-                line[i] = line[i].wrapping_add(p);
-            }
-            let sample = |idx: usize| -> u16 {
-                match depth {
-                    16 => u16::from_be_bytes([line[idx * 2], line[idx * 2 + 1]]),
-                    8 => u16::from(line[idx]),
-                    d => {
-                        let bit = idx * usize::from(d);
-                        let byte = line[bit / 8];
-                        let shift = 8 - usize::from(d) - bit % 8;
-                        u16::from((byte >> shift) & ((1u8 << d) - 1))
-                    }
-                }
-            };
-            let to8 = |v: u16| -> u8 {
-                match depth {
-                    16 => (v >> 8) as u8,
-                    8 => v as u8,
-                    d => (u32::from(v) * 255 / ((1u32 << d) - 1)) as u8,
-                }
-            };
-            for x in 0..pw {
-                let px = match ctype {
-                    0 => {
-                        let v = sample(x);
-                        let g = to8(v);
-                        let transparent = trns.len() >= 2 && u16::from_be_bytes([trns[0], trns[1]]) == v;
-                        [g, g, g, if transparent { 0 } else { 255 }]
-                    }
-                    2 => {
-                        let s = [sample(x * 3), sample(x * 3 + 1), sample(x * 3 + 2)];
-                        let transparent = trns.len() >= 6
-                            && (0..3).all(|k| u16::from_be_bytes([trns[k * 2], trns[k * 2 + 1]]) == s[k]);
-                        [to8(s[0]), to8(s[1]), to8(s[2]), if transparent { 0 } else { 255 }]
-                    }
-                    3 => {
-                        let i = sample(x) as usize;
-                        let c = plte.get(i).copied().unwrap_or([0; 3]);
-                        [c[0], c[1], c[2], trns.get(i).copied().unwrap_or(255)]
-                    }
-                    4 => {
-                        let g = to8(sample(x * 2));
-                        [g, g, g, to8(sample(x * 2 + 1))]
-                    }
-                    _ => [to8(sample(x * 4)), to8(sample(x * 4 + 1)), to8(sample(x * 4 + 2)), to8(sample(x * 4 + 3))],
-                };
-                let (ox, oy) = (x0 + x * dx, y0 + row * dy);
-                let o = (oy * w as usize + ox) * 4;
-                data[o..o + 4].copy_from_slice(&px);
-            }
-            prev = line;
-        }
-    }
-    Ok(Rgba { width: w, height: h, data })
+    let png = rpng::decode(bytes).map_err(|e| e.to_string())?;
+    Ok(Rgba { width: png.image.width, height: png.image.height, data: png.image.to_rgba8() })
 }
 
 /// A PNM image (P1–P6): samples as read (16-bit when maxval > 255),
