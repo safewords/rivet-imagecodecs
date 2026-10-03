@@ -133,7 +133,13 @@ fn median_cut(colours: &mut [(u32, u32)], max: usize) -> Vec<[u8; 3]> {
 /// colours nearest it. Skipped when that would be too slow.
 fn refine(colours: &[(u32, u32)], palette: &mut [[u8; 3]]) {
     let work = colours.len().saturating_mul(palette.len());
-    let passes = if work <= 1 << 24 { 2 } else if work <= 1 << 27 { 1 } else { 0 };
+    let passes = if work <= 1 << 24 {
+        2
+    } else if work <= 1 << 27 {
+        1
+    } else {
+        0
+    };
     for _ in 0..passes {
         let mut sums = vec![[0u64; 4]; palette.len()];
         for &(c, k) in colours {

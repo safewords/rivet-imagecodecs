@@ -286,7 +286,8 @@ impl Encoder {
         for v in [x0, y0, rw, rh] {
             self.out.extend_from_slice(&(v as u16).to_le_bytes());
         }
-        let table_len = if local { mapper.palette().len() + usize::from(needs_transparent) } else { usize::from(transparent) + 1 };
+        let table_len =
+            if local { mapper.palette().len() + usize::from(needs_transparent) } else { usize::from(transparent) + 1 };
         let bits = table_bits(table_len);
         if local {
             self.out.push(0x80 | (bits - 1));

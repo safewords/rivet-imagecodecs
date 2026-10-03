@@ -186,8 +186,12 @@ fn a_fixed_palette_is_used_for_every_frame() {
         }
     }
     let palette = hist.palette(255);
-    let mut e = Encoder::new(w as u16, h as u16, EncodeOptions { palette: PaletteMode::Fixed(palette.clone()), ..Default::default() })
-        .unwrap();
+    let mut e = Encoder::new(
+        w as u16,
+        h as u16,
+        EncodeOptions { palette: PaletteMode::Fixed(palette.clone()), ..Default::default() },
+    )
+    .unwrap();
     for f in &frames {
         e.add_frame(f, 5).unwrap();
     }
@@ -207,6 +211,9 @@ fn bad_encoder_input_is_refused() {
     assert!(gif::encode(0, 1, &[], &EncodeOptions::default()).is_err());
     assert!(gif::encode(2, 2, &[0; 15], &EncodeOptions::default()).is_err());
     assert!(Encoder::new(1, 1, EncodeOptions { max_colors: 1, ..Default::default() }).is_err());
-    assert!(Encoder::new(1, 1, EncodeOptions { palette: PaletteMode::Fixed(vec![[0; 3]; 256]), ..Default::default() }).is_err());
+    assert!(
+        Encoder::new(1, 1, EncodeOptions { palette: PaletteMode::Fixed(vec![[0; 3]; 256]), ..Default::default() })
+            .is_err()
+    );
     assert!(Encoder::new(1, 1, EncodeOptions::default()).unwrap().finish().is_err());
 }

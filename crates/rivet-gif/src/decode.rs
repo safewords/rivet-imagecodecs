@@ -128,10 +128,7 @@ pub fn decode_with_limits(data: &[u8], limits: Limits) -> Result<Animation> {
     while let Some(f) = d.next_frame()? {
         total = total.saturating_add(frame_bytes);
         if total > limits.max_total_bytes {
-            return Err(Error::LimitExceeded(format!(
-                "the frames need more than {} bytes",
-                limits.max_total_bytes
-            )));
+            return Err(Error::LimitExceeded(format!("the frames need more than {} bytes", limits.max_total_bytes)));
         }
         frames.push(f);
     }
@@ -502,16 +499,17 @@ impl<'a> Decoder<'a> {
                     if control.transparent == Some(index) {
                         continue;
                     }
-                    let [r, g, b] = *palette
-                        .get(usize::from(index))
-                        .ok_or_else(|| Error::Invalid(format!("pixel index {index} outside a {}-colour table", palette.len())))?;
+                    let [r, g, b] = *palette.get(usize::from(index)).ok_or_else(|| {
+                        Error::Invalid(format!("pixel index {index} outside a {}-colour table", palette.len()))
+                    })?;
                     let at = (y * sw + x) * 4;
                     self.canvas[at..at + 4].copy_from_slice(&[r, g, b, 255]);
                 }
             }
         }
 
-        let clip = |a: u16, len: u16, max: usize| (usize::from(a).min(max), (usize::from(a) + usize::from(len)).min(max));
+        let clip =
+            |a: u16, len: u16, max: usize| (usize::from(a).min(max), (usize::from(a) + usize::from(len)).min(max));
         let (x0, x1) = clip(left, w, sw);
         let (y0, y1) = clip(top, h, sh);
         self.pending = Some((control.disposal, (x0, y0, x1, y1)));

@@ -64,8 +64,13 @@ fn check(dir: &Path, name: &str) -> Result<(), String> {
     }
     let force = cfg.get("force-animation").is_some_and(|v| v == "yes");
     let n = anim.frames.len();
-    let shown: Vec<&gif::Frame> =
-        anim.frames.iter().enumerate().filter(|(i, f)| force || f.delay_cs > 0 || *i == n - 1).map(|(_, f)| f).collect();
+    let shown: Vec<&gif::Frame> = anim
+        .frames
+        .iter()
+        .enumerate()
+        .filter(|(i, f)| force || f.delay_cs > 0 || *i == n - 1)
+        .map(|(_, f)| f)
+        .collect();
     if shown.len() != frames_spec.len() {
         return Err(format!("{} frames shown, expected {}", shown.len(), frames_spec.len()));
     }
