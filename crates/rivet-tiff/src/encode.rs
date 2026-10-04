@@ -175,9 +175,10 @@ impl Encoder {
         };
         let row_bytes = width as usize * ch * format.bits() / 8;
         let rows_per_strip = (self.options.strip_bytes / row_bytes).clamp(1, height as usize) as u32;
-        let mut strips = Vec::new();
-        for chunk in bytes.chunks(row_bytes * rows_per_strip as usize) {
-            let mut raw = chunk.to_vec();
+        // Strips are independent: compressed on several threads, in order.
+        let pieces: Vec<&[u8]> = bytes.chunks(row_bytes * rows_per_strip as usize).collect();
+        let strips = crate::par::map(pieces.len(), 0, |i| {
+            let mut raw = pieces[i].to_vec();
             let compressing = matches!(self.options.compression, Compression::Lzw | Compression::Deflate);
             if self.options.predictor && compressing {
                 if format.float() {
@@ -186,7 +187,7 @@ impl Encoder {
                     horizontal_predict(&mut raw, row_bytes, ch, format.bits() / 8, be);
                 }
             }
-            strips.push(match self.options.compression {
+            match self.options.compression {
                 Compression::None => raw,
                 Compression::Lzw => lzw::encode(&raw),
                 Compression::Deflate => rpng::deflate::zlib_compress(&raw, self.options.deflate_level),
@@ -197,8 +198,8 @@ impl Encoder {
                     }
                     out
                 }
-            });
-        }
+            }
+        });
         self.pages.push(EncodedPage { width, height, format, rows_per_strip, strips });
         Ok(())
     }

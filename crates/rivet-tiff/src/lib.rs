@@ -37,6 +37,7 @@ mod encode;
 mod ifd;
 mod lzw;
 mod packbits;
+mod par;
 
 use std::fmt;
 

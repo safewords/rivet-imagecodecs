@@ -286,30 +286,41 @@ impl Page<'_> {
         let chunks = self.chunks(w, h, planes)?;
         let (offsets, counts) = self.offsets_and_counts()?;
         let mut first_error = None;
-        for c in &chunks {
-            let Some(&offset) = offsets.get(c.index) else { continue };
-            let stored = match self.chunk(c, offset, counts.get(c.index).copied(), sp, bps, subsampling) {
-                Ok(s) => s,
-                Err(e) => {
-                    first_error.get_or_insert(e);
-                    continue;
+        // Chunks are independent: they are decompressed and un-predicted a
+        // batch at a time on several threads, then placed in order.
+        let batch = crate::par::threads(0).max(1) * 4;
+        for group in chunks.chunks(batch) {
+            let decoded = crate::par::map(group.len(), 0, |i| {
+                let c = &group[i];
+                offsets
+                    .get(c.index)
+                    .map(|&offset| self.chunk(c, offset, counts.get(c.index).copied(), sp, bps, subsampling))
+            });
+            for (c, result) in group.iter().zip(decoded) {
+                let Some(result) = result else { continue };
+                let stored = match result {
+                    Ok(s) => s,
+                    Err(e) => {
+                        first_error.get_or_insert(e);
+                        continue;
+                    }
+                };
+                // Copy the chunk's rows into the image.
+                let chunk_row = (c.width * sp * bps).div_ceil(8);
+                let x_byte = c.x0 * sp * bps / 8;
+                if !(c.x0 * sp * bps).is_multiple_of(8) {
+                    return Err(Error::Unsupported("tiles that do not start on a byte boundary".into()));
                 }
-            };
-            // Copy the chunk's rows into the image.
-            let chunk_row = (c.width * sp * bps).div_ceil(8);
-            let x_byte = c.x0 * sp * bps / 8;
-            if !(c.x0 * sp * bps).is_multiple_of(8) {
-                return Err(Error::Unsupported("tiles that do not start on a byte boundary".into()));
-            }
-            let len = chunk_row.min(row_bytes.saturating_sub(x_byte));
-            let plane = &mut raw[c.plane];
-            for r in 0..c.rows {
-                let y = c.y0 + r;
-                if y >= h {
-                    break;
+                let len = chunk_row.min(row_bytes.saturating_sub(x_byte));
+                let plane = &mut raw[c.plane];
+                for r in 0..c.rows {
+                    let y = c.y0 + r;
+                    if y >= h {
+                        break;
+                    }
+                    let src = &stored[r * chunk_row..r * chunk_row + len];
+                    plane[y * row_bytes + x_byte..y * row_bytes + x_byte + len].copy_from_slice(src);
                 }
-                let src = &stored[r * chunk_row..r * chunk_row + len];
-                plane[y * row_bytes + x_byte..y * row_bytes + x_byte + len].copy_from_slice(src);
             }
         }
         if let Some(e) = first_error {
@@ -674,6 +685,40 @@ impl Page<'_> {
                     }
                 }
                 Samples::F32(out)
+            }
+            // Chunky 8-bit samples: whole rows at a time, copied as they are
+            // when every sample is taken in order unchanged.
+            _ if bps == 8 && raw.len() == 1 && sp >= from.len() => {
+                let mut out = Vec::with_capacity(n);
+                let unchanged = from.len() == sp && from.iter().enumerate().all(|(i, &s)| i == s) && !invert && !signed;
+                for y in 0..h {
+                    let row = &raw[0][y * row_bytes..y * row_bytes + w * sp];
+                    if unchanged {
+                        out.extend_from_slice(row);
+                    } else {
+                        for px in row.chunks_exact(sp) {
+                            for &s in &from {
+                                out.push(norm(u64::from(px[s]), s) as u8);
+                            }
+                        }
+                    }
+                }
+                Samples::U8(out)
+            }
+            // Chunky 16-bit samples, a row at a time.
+            _ if bps == 16 && raw.len() == 1 && sp >= from.len() => {
+                let mut out = Vec::with_capacity(n);
+                for y in 0..h {
+                    let row = &raw[0][y * row_bytes..y * row_bytes + w * sp * 2];
+                    for px in row.chunks_exact(sp * 2) {
+                        for &s in &from {
+                            let b = [px[2 * s], px[2 * s + 1]];
+                            let v = if be { u16::from_be_bytes(b) } else { u16::from_le_bytes(b) };
+                            out.push(norm(u64::from(v), s) as u16);
+                        }
+                    }
+                }
+                Samples::U16(out)
             }
             _ if bps <= 8 => {
                 let mut out = Vec::with_capacity(n);
